@@ -528,15 +528,15 @@ var WinningNumberController = /*#__PURE__*/function () {
   }, {
     key: "countSameNumber",
     value: function countSameNumber(lottoNumbers, winningNumbers, bonus) {
-      var Count = lottoNumbers.filter(function (number) {
+      var count = lottoNumbers.filter(function (number) {
         return winningNumbers.includes(number);
       }).length;
 
-      if (this.checkBonus(Count, lottoNumbers, bonus)) {
-        Count = _configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.STATISTIC.fiveBonus.number;
+      if (this.checkBonus(count, lottoNumbers, bonus)) {
+        count = _configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.STATISTIC.fiveBonus.number;
       }
 
-      return Count;
+      return count;
     }
   }, {
     key: "checkBonus",
@@ -547,11 +547,11 @@ var WinningNumberController = /*#__PURE__*/function () {
     }
   }, {
     key: "createStatisticWithCountList",
-    value: function createStatisticWithCountList(CountList) {
+    value: function createStatisticWithCountList(countList) {
       var _this2 = this;
 
       var winningStatistic = _models_LottoModel_js__WEBPACK_IMPORTED_MODULE_3__["default"].createWinningStatistic();
-      CountList.forEach(function (count) {
+      countList.forEach(function (count) {
         var countString = _this2.translateToString(count);
 
         winningStatistic[countString] += 1;
