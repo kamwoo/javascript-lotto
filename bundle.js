@@ -528,8 +528,8 @@ var WinningNumberController = /*#__PURE__*/function () {
   }, {
     key: "countSameNumber",
     value: function countSameNumber(lottoNumbers, winningNumbers, bonus) {
-      var Count = winningNumbers.filter(function (winningNumber, index) {
-        return winningNumber === lottoNumbers[index];
+      var Count = lottoNumbers.filter(function (number) {
+        return winningNumbers.includes(number);
       }).length;
 
       if (this.checkBonus(Count, lottoNumbers, bonus)) {
