@@ -80,10 +80,6 @@ var PAYMENT = {
   }
 };
 var STATISTIC = {
-  under: {
-    winnings: 0,
-    numberString: 'under'
-  },
   three: {
     number: 3,
     winnings: 5000,
@@ -138,12 +134,13 @@ var SELECTOR = {
   TICKET: '.ticket',
   SHOW_NUMBER_TOGGLE_AREA: '#show-number-toggle-area',
   WINNING_NUMBER_INPUT: '.winning-number-input',
-  BONUS_NUMBER_INPUT: '.bonus-number-input',
+  BONUS_NUMBER_INPUT: '#bonus-number-input',
   SHOW_RESULT_BUTTON: '#show-result-button',
+  WINNING_NUMBER_SECTION_RESET_BUTTON: '#winning-number-section-reset-button',
   STATISTIC_SECTION_WRAP: '#statistic-section-wrap',
   STATISTIC_SECTION: '#statistic-section',
   CLOSE_BUTTON: '#close-button',
-  RESET_BUTTON: '#reset-button'
+  STATISTIC_SECTION_RESET_BUTTON: '#statistic-section-reset-button'
 };
 
 /***/ }),
@@ -215,7 +212,12 @@ var LottoController = /*#__PURE__*/function () {
       this.lottoModel.setInitialState();
       this.paymentController.resetInput();
       this.ticketController.renderTicketListView();
-      this.winningNumberController.resetInput();
+      this.winningNumberController.resetView();
+    }
+  }, {
+    key: "afterClickCloseButton",
+    value: function afterClickCloseButton() {
+      this.winningNumberController.showResetButton();
     }
   }]);
 
@@ -340,18 +342,23 @@ var StatisticController = /*#__PURE__*/function () {
           winningStatistic = _this$lottoModel$getS.winningStatistic;
 
       this.statisticView.mountTemplate(winningStatistic, earningRatio);
-      this.setEventHandler();
+      this.setEventHandlers();
     }
   }, {
-    key: "setEventHandler",
-    value: function setEventHandler() {
+    key: "setEventHandlers",
+    value: function setEventHandlers() {
       this.statisticView.bindOnClickResetButton(this.didClickResetButton.bind(this));
+      this.statisticView.bindOnClickCloseButton(this.didClickCloseButton.bind(this));
     }
   }, {
     key: "didClickResetButton",
     value: function didClickResetButton() {
-      this.statisticView.disappearView();
       this.lottoController.afterClickedResetButton();
+    }
+  }, {
+    key: "didClickCloseButton",
+    value: function didClickCloseButton() {
+      this.lottoController.afterClickCloseButton();
     }
   }]);
 
@@ -464,14 +471,26 @@ var WinningNumberController = /*#__PURE__*/function () {
       this.setEventHandler();
     }
   }, {
-    key: "resetInput",
-    value: function resetInput() {
+    key: "resetView",
+    value: function resetView() {
       this.winningNumberView.clearInputs();
+      this.winningNumberView.removeResetButton();
+    }
+  }, {
+    key: "showResetButton",
+    value: function showResetButton() {
+      this.winningNumberView.showResetButton();
     }
   }, {
     key: "setEventHandler",
     value: function setEventHandler() {
       this.winningNumberView.bindOnClickShowResultButton(this.didClickShowResultButton.bind(this));
+      this.winningNumberView.bindOnClickResetButton(this.didClickResetButton.bind(this));
+    }
+  }, {
+    key: "didClickResetButton",
+    value: function didClickResetButton() {
+      this.lottoController.afterClickedResetButton();
     }
   }, {
     key: "didClickShowResultButton",
@@ -480,50 +499,46 @@ var WinningNumberController = /*#__PURE__*/function () {
           bonusNumber = _ref.bonusNumber;
 
       try {
-        this.checkLottoList();
-        _utils_validator_js__WEBPACK_IMPORTED_MODULE_2__["default"].checkWinningNumberList(winningNumbers);
-        _utils_validator_js__WEBPACK_IMPORTED_MODULE_2__["default"].checkBonusNumber(bonusNumber);
-        _utils_validator_js__WEBPACK_IMPORTED_MODULE_2__["default"].checkDuplicateBonus(winningNumbers, bonusNumber);
+        _utils_validator_js__WEBPACK_IMPORTED_MODULE_2__["default"].checkWinningAndBonusNumbers(winningNumbers, bonusNumber);
+        _utils_validator_js__WEBPACK_IMPORTED_MODULE_2__["default"].checkLottoListExist(this.lottoModel.getState().lottoList);
         this.setWinningStatistic(winningNumbers, bonusNumber);
       } catch (error) {
         alert(error.message);
       }
     }
   }, {
-    key: "checkLottoList",
-    value: function checkLottoList() {
-      var _this$lottoModel$getS = this.lottoModel.getState(),
-          lottoList = _this$lottoModel$getS.lottoList;
-
-      if (lottoList.length === 0) {
-        throw new Error(_configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.ERROR_MESSAGE.DID_NOT_BUY_LOTTO);
-      }
-    }
-  }, {
     key: "setWinningStatistic",
     value: function setWinningStatistic(winningNumbers, bonusNumber) {
-      var _this$lottoModel$getS2 = this.lottoModel.getState(),
-          lottoList = _this$lottoModel$getS2.lottoList;
+      var _this$lottoModel$getS = this.lottoModel.getState(),
+          lottoList = _this$lottoModel$getS.lottoList;
 
       var lottoNumbersList = lottoList.map(function (lotto) {
         return lotto.numbers;
       });
-      var countList = this.createCountList(lottoNumbersList, winningNumbers, bonusNumber);
-      var winningStatistic = this.createStatisticWithCountList(countList);
+      var winningStatistic = this.createWinningStatistic(lottoNumbersList, winningNumbers, bonusNumber);
       this.lottoModel.setState({
         winningStatistic: winningStatistic
       });
       this.lottoController.afterSetWinningStatistic();
     }
   }, {
-    key: "createCountList",
-    value: function createCountList(lottoNumbersList, winningNumbers, bonus) {
+    key: "createWinningStatistic",
+    value: function createWinningStatistic(lottoNumbersList, winningNumbers, bonus) {
       var _this = this;
 
-      var countList = lottoNumbersList.map(function (lottoNumbers) {
-        return _this.countSameNumber(lottoNumbers, winningNumbers, bonus);
+      var winningStatistic = _models_LottoModel_js__WEBPACK_IMPORTED_MODULE_3__["default"].createEmptyWinningStatistic();
+      lottoNumbersList.forEach(function (lottoNumbers) {
+        var count = _this.countSameNumber(lottoNumbers, winningNumbers, bonus);
+
+        if (count < _configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.STATISTIC.three.number) {
+          return;
+        }
+
+        var numberString = _this.translateToString(count);
+
+        winningStatistic[numberString] += 1;
       });
-      return countList;
+      return winningStatistic;
     }
   }, {
     key: "countSameNumber",
@@ -546,35 +561,11 @@ var WinningNumberController = /*#__PURE__*/function () {
       });
     }
   }, {
-    key: "createStatisticWithCountList",
-    value: function createStatisticWithCountList(countList) {
-      var _this2 = this;
-
-      var winningStatistic = _models_LottoModel_js__WEBPACK_IMPORTED_MODULE_3__["default"].createWinningStatistic();
-      countList.forEach(function (count) {
-        var countString = _this2.translateToString(count);
-
-        winningStatistic[countString] += 1;
-      });
-      return winningStatistic;
-    }
-  }, {
     key: "translateToString",
     value: function translateToString(count) {
-      if (count < _configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.STATISTIC.three.number) {
-        return _configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.STATISTIC.under.numberString;
-      }
-
       var statisticDataList = Object.values(_configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.STATISTIC);
       var targetData = statisticDataList.find(function (data) {
-        var numberString = data.numberString,
-            number = data.number;
-
-        if (number === count) {
-          return numberString;
-        }
-
-        return false;
+        return count === data.number;
       });
       return targetData.numberString;
     }
@@ -681,7 +672,7 @@ var LottoModel = /*#__PURE__*/function () {
       var initialState = {
         amount: 0,
         lottoList: [],
-        winningStatistic: LottoModel.createWinningStatistic()
+        winningStatistic: LottoModel.createEmptyWinningStatistic()
       };
       this.setState(initialState);
     }
@@ -704,17 +695,18 @@ var LottoModel = /*#__PURE__*/function () {
     key: "getEarningRatio",
     value: function getEarningRatio() {
       var sumWinnings = this.getSumWinnings();
-      return sumWinnings / this.state.amount * 100;
+      return sumWinnings / this.state.amount * 100 - 100;
     }
   }, {
     key: "getSumWinnings",
     value: function getSumWinnings() {
-      var statisticList = Object.entries(this.state.winningStatistic);
+      var _this = this;
+
+      var numberStringList = Object.keys(this.state.winningStatistic);
       var initialValue = 0;
-      return statisticList.reduce(function (prev, curr) {
-        var numberString = curr[0];
-        var count = curr[1];
-        return prev + _configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.STATISTIC[numberString].winnings * count;
+      return numberStringList.reduce(function (sum, numberString) {
+        var count = _this.state.winningStatistic[numberString];
+        return sum + _configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.STATISTIC[numberString].winnings * count;
       }, initialValue);
     }
   }, {
@@ -725,10 +717,10 @@ var LottoModel = /*#__PURE__*/function () {
   }, {
     key: "issueLottosWithCount",
     value: function issueLottosWithCount(count) {
-      var _this = this;
+      var _this2 = this;
 
       return Array(count).fill().map(function () {
-        return _this.issueLotto();
+        return _this2.issueLotto();
       });
     }
   }, {
@@ -737,8 +729,8 @@ var LottoModel = /*#__PURE__*/function () {
       return new _Lotto_Lotto_js__WEBPACK_IMPORTED_MODULE_1__["default"]();
     }
   }], [{
-    key: "createWinningStatistic",
-    value: function createWinningStatistic() {
+    key: "createEmptyWinningStatistic",
+    value: function createEmptyWinningStatistic() {
       var statisticList = Object.keys(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.STATISTIC).map(function (numberString) {
         return [numberString, 0];
       });
@@ -770,24 +762,26 @@ var template = {
     return "\n      <h1 id=\"title\">\uD83C\uDFB1 \uD589\uC6B4\uC758 \uB85C\uB610</h1>\n      <section id=\"payment-section\">\n      </section>\n      <section id=\"ticket-section\">\n      </section>\n      <section id=\"winning-number-section\">\n      </section>\n      <div id=\"statistic-section-wrap\" class=\"blind\">\n      </div>\n    ";
   },
   paymentSection: function paymentSection() {
-    return "\n      <h2 hidden>payment-section</h2>\n      <label for=\"payment-input\">\uAD6C\uC785\uD560 \uAE08\uC561\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.</label>\n      <form>\n        <input type=\"number\" id=\"payment-input\" />\n        <button id=\"payment-submit\">\uAD6C\uC785</button>\n      </form>\n    ";
+    return "\n      <h2 class=\"outliner\">\uAD6C\uC785\uD560 \uAE08\uC561 \uC785\uB825</h2>\n      <label for=\"payment-input\">\uAD6C\uC785\uD560 \uAE08\uC561\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.</label>\n      <form id=\"payment-form\">\n        <input type=\"number\" id=\"payment-input\" />\n        <button id=\"payment-submit\">\uAD6C\uC785</button>\n      </form>\n    ";
   },
   ticketSection: function ticketSection() {
-    return "\n      <h2 class=\"blind\">ticket-section</h2>\n      <div id=\"ticket-list-wrap\">\n      </div>\n      <div id=\"show-number-toggle-area\">\n      </div>\n    ";
+    return "\n      <h2 class=\"outliner\">\uAD6C\uC785\uD55C \uB85C\uB610 \uD655\uC778</h2>\n      <div id=\"ticket-list-wrap\">\n      </div>\n      <div id=\"show-number-toggle-area\">\n      </div>\n    ";
   },
   ticketListWrap: function ticketListWrap(lottoList, isShowNumber) {
     return "\n      <p>\uCD1D <span>".concat(lottoList.length, "</span>\uAC1C\uB97C \uAD6C\uB9E4\uD558\uC600\uC2B5\uB2C8\uB2E4.</p>\n      <ul id=\"ticket-list\" class=\"").concat(isShowNumber ? 'ticket-list-column' : 'ticket-list-row', "\">\n        ").concat(lottoList.map(function (lotto) {
-      return "<li class=\"ticket\">\n              <p>\n              <span class=\"ticket-emoji\">\uD83C\uDF9F</span>\n              ".concat(isShowNumber ? "<span class=\"ticket-numbers\">\n                  ".concat(lotto.numbers.join(', '), "</span>") : '', "\n              </p>\n              </li>");
+      return "<li class=\"ticket\">\n              <p>\n              <span class=\"ticket-emoji\">\uD83C\uDF9F</span>\n              ".concat(isShowNumber ? "<span class=\"ticket-numbers\">".concat(lotto.numbers.join(', '), "</span>") : '', "\n              </p>\n              </li>");
     }).join(''), "\n      </ul>\n    ");
   },
   showNumberToggleArea: function showNumberToggleArea(isShowNumber) {
     return "\n      <label class=\"switch-label\">\n      \uBC88\uD638 \uBCF4\uAE30\n        <label class=\"switch\">\n          <input id=\"slider\" type=\"checkbox\" ".concat(isShowNumber ? 'checked' : '', "/>\n          <span class=\"slider round\"></span>\n        </label>\n      </label>\n    ");
   },
   winningNumberSection: function winningNumberSection() {
-    return "\n      <h2 class=\"blind\">winning-number-section</h2>\n      <p>\uC9C0\uB09C \uC8FC \uB2F9\uCCA8\uBC88\uD638 6\uAC1C\uC640 \uBCF4\uB108\uC2A4 \uBC88\uD638 1\uAC1C\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.</p>\n      <fieldset id=\"winning-number-fieldset\">\n        <form id=\"winning-number-form\">\n          <label>\uB2F9\uCCA8 \uBC88\uD638</label>\n          <div id=\"winning-number-input-wrap\">\n            ".concat("<input class=\"winning-number-input\" type=\"text\" maxlength=\"2\" />".repeat(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.LOTTO.NUMBER_LENGTH), "\n          </div>\n        </form>\n        <form id=\"bonus-number-form\">\n          <label for=\"bonus_number\">\uBCF4\uB108\uC2A4 \uBC88\uD638</label>\n          <input class=\"bonus-number-input\" type=\"text\" name=\"bonus_number\" maxlength=\"2\" />\n        </form>\n      </fieldset>\n      <button id=\"show-result-button\">\uACB0\uACFC \uD655\uC778\uD558\uAE30</button>\n    ");
+    return "\n      <h2 class=\"outliner\">\uC9C0\uB09C \uC8FC \uB2F9\uCCA8 \uBC88\uD638 \uC785\uB825</h2>\n      <p>\uC9C0\uB09C \uC8FC \uB2F9\uCCA8\uBC88\uD638 6\uAC1C\uC640 \uBCF4\uB108\uC2A4 \uBC88\uD638 1\uAC1C\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.</p>\n      <form id=\"winning-number-form\">\n        <fieldset id=\"winning-number-fieldset\">\n          <legend hidden>\uB2F9\uCCA8\uBC88\uD638 \uC785\uB825\uB780</legend>\n          <label id=\"winning-number-input-label\">\n            \uB2F9\uCCA8 \uBC88\uD638\n            <ul id=\"winning-number-input-wrap\">\n              ".concat("<li><input class=\"winning-number-input\" type=\"text\" maxlength=\"2\" /></li>".repeat(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.LOTTO.NUMBER_LENGTH), "\n            </ul>\n          </label>\n          <label id=\"bonus-number-input-label\" for=\"bonus-number-input\">\n            \uBCF4\uB108\uC2A4 \uBC88\uD638\n            <input id=\"bonus-number-input\" type=\"text\" maxlength=\"2\" />\n          </label>\n        </fieldset>\n        <button id=\"show-result-button\">\uACB0\uACFC \uD655\uC778\uD558\uAE30</button>\n      </form>\n      <button id=\"winning-number-section-reset-button\" class=\"blind\">\uB2E4\uC2DC \uC2DC\uC791\uD558\uAE30</button>\n    ");
   },
   statisticSectionWrap: function statisticSectionWrap(winningStatistic, earningRatio) {
-    return "\n      <section id=\"statistic-section\">\n        <h2>\uD83C\uDFC6 \uB2F9\uCCA8 \uD1B5\uACC4 \uD83C\uDFC6</h2>\n        <span id=\"close-button\"></span>\n        <table id=\"statistic-table\">\n          <tr>\n            <th>\uC77C\uCE58 \uAC2F\uC218</th>\n            <th>\uB2F9\uCCA8\uAE08</th>\n            <th>\uB2F9\uCCA8 \uAC2F\uC218</th>\n          </tr>\n          <tr>\n            <td>3\uAC1C</td>\n            <td>5,000</td>\n            <td>".concat(winningStatistic.three, "\uAC1C</td>\n          </tr>\n          <tr>\n            <td>4\uAC1C</td>\n            <td>50,000</td>\n            <td>").concat(winningStatistic.four, "\uAC1C</td>\n          </tr>\n          <tr>\n            <td>5\uAC1C</td>\n            <td>1,500,000</td>\n            <td>").concat(winningStatistic.five, "\uAC1C</td>\n          </tr>\n          <tr>\n            <td>5\uAC1C+\uBCF4\uB108\uC2A4\uBCFC</td>\n            <td>30,000,000</td>\n            <td>").concat(winningStatistic.fiveBonus, "\uAC1C</td>\n          </tr>\n          <tr>\n            <td>6\uAC1C</td>\n            <td>2,000,000,000</td>\n            <td>").concat(winningStatistic.six, "\uAC1C</td>\n          </tr>\n        </table>\n        <p id=\"ratio-result\">\uB2F9\uC2E0\uC758 \uCD1D \uC218\uC775\uB960\uC740 ").concat(earningRatio, "%\uC785\uB2C8\uB2E4.</p>\n        <button id=\"reset-button\">\uB2E4\uC2DC \uC2DC\uC791\uD558\uAE30</button>\n      </section>\n    ");
+    return "\n      <section id=\"statistic-section\">\n        <h2>\uD83C\uDFC6 \uB2F9\uCCA8 \uD1B5\uACC4 \uD83C\uDFC6</h2>\n        <span id=\"close-button\"></span>\n        <table id=\"statistic-table\">\n          <tr>\n            <th>\uC77C\uCE58 \uAC2F\uC218</th>\n            <th>\uB2F9\uCCA8\uAE08</th>\n            <th>\uB2F9\uCCA8 \uAC2F\uC218</th>\n          </tr>\n          ".concat(Object.values(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.STATISTIC).map(function (data) {
+      return "\n              <tr>\n                <td>".concat(data === _configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.STATISTIC.fiveBonus ? "5\uAC1C+\uBCF4\uB108\uC2A4\uBCFC" : "".concat(data.number, "\uAC1C"), "</td>\n                <td>").concat(data.winnings.toLocaleString('ko-KR'), "</td>\n                <td>").concat(winningStatistic[data.numberString], "</td>\n              </tr>\n            ");
+    }).join(''), "\n        </table>\n        <p id=\"ratio-result\">\uB2F9\uC2E0\uC758 \uCD1D \uC218\uC775\uB960\uC740 ").concat(earningRatio, "%\uC785\uB2C8\uB2E4.</p>\n        <button id=\"statistic-section-reset-button\">\uB2E4\uC2DC \uC2DC\uC791\uD558\uAE30</button>\n      </section>\n    ");
   }
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (template);
@@ -871,7 +865,12 @@ var validator = {
   checkLottoList: function checkLottoList(lottoList, count) {
     return isValidLottoList(lottoList, count);
   },
-  checkWinningNumberList: function checkWinningNumberList(winningNumbers) {
+  checkLottoListExist: function checkLottoListExist(lottoList) {
+    if (lottoList.length === 0) {
+      throw new Error(_configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.ERROR_MESSAGE.DID_NOT_BUY_LOTTO);
+    }
+  },
+  checkWinningAndBonusNumbers: function checkWinningAndBonusNumbers(winningNumbers, bonusNumber) {
     if (!isValidlottoNumbers(winningNumbers)) {
       throw new Error(_configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.ERROR_MESSAGE.NOT_A_LOTTO_NUMBER);
     }
@@ -879,13 +878,11 @@ var validator = {
     if (!isValidDuplicatedLottoNumber(winningNumbers)) {
       throw new Error(_configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.ERROR_MESSAGE.IS_DUPLICATED);
     }
-  },
-  checkBonusNumber: function checkBonusNumber(bonusNumber) {
+
     if (!isValidLottoNumber(bonusNumber)) {
       throw new Error(_configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.ERROR_MESSAGE.NOT_A_BONUS_NUMBER);
     }
-  },
-  checkDuplicateBonus: function checkDuplicateBonus(winningNumbers, bonusNumber) {
+
     if (isValidDuplicateBonus(winningNumbers, bonusNumber)) {
       throw new Error(_configs_contants_js__WEBPACK_IMPORTED_MODULE_1__.ERROR_MESSAGE.IS_DUPLICATED_BONUS);
     }
@@ -1089,33 +1086,49 @@ var StatisticView = /*#__PURE__*/function () {
     key: "mountTemplate",
     value: function mountTemplate(winningStatistic, earningRatio) {
       this.$target.innerHTML = _templates_template__WEBPACK_IMPORTED_MODULE_1__["default"].statisticSectionWrap(winningStatistic, earningRatio);
-      this.appearView();
+      this.showView();
       this.afterMounted();
     }
   }, {
-    key: "appearView",
-    value: function appearView() {
+    key: "showView",
+    value: function showView() {
       this.$target.classList.remove(_configs_contants_js__WEBPACK_IMPORTED_MODULE_2__.DOM_STRING.BLIND);
     }
   }, {
-    key: "disappearView",
-    value: function disappearView() {
+    key: "removeView",
+    value: function removeView() {
       this.$target.classList.add(_configs_contants_js__WEBPACK_IMPORTED_MODULE_2__.DOM_STRING.BLIND);
     }
   }, {
     key: "afterMounted",
     value: function afterMounted() {
-      this.$resetButton = (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_0__.$)(_configs_contants_js__WEBPACK_IMPORTED_MODULE_2__.SELECTOR.RESET_BUTTON);
+      this.$resetButton = (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_0__.$)(_configs_contants_js__WEBPACK_IMPORTED_MODULE_2__.SELECTOR.STATISTIC_SECTION_RESET_BUTTON);
       this.$closeButton = (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_0__.$)(_configs_contants_js__WEBPACK_IMPORTED_MODULE_2__.SELECTOR.CLOSE_BUTTON);
     }
   }, {
     key: "bindOnClickResetButton",
     value: function bindOnClickResetButton(callback) {
-      [this.$resetButton, this.$closeButton].forEach(function (button) {
-        return button.addEventListener('click', function (event) {
-          event.preventDefault();
-          callback();
-        });
+      var _this = this;
+
+      this.$resetButton.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        _this.removeView();
+
+        callback();
+      });
+    }
+  }, {
+    key: "bindOnClickCloseButton",
+    value: function bindOnClickCloseButton(callback) {
+      var _this2 = this;
+
+      this.$closeButton.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        _this2.removeView();
+
+        callback();
       });
     }
   }]);
@@ -1273,6 +1286,7 @@ var WinningNumberView = /*#__PURE__*/function () {
       this.$$winningNumberInput = (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_2__.$$)(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.SELECTOR.WINNING_NUMBER_INPUT);
       this.$bonusNumberInput = (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_2__.$)(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.SELECTOR.BONUS_NUMBER_INPUT);
       this.$showResultButton = (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_2__.$)(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.SELECTOR.SHOW_RESULT_BUTTON);
+      this.$resetButton = (0,_utils_utils_js__WEBPACK_IMPORTED_MODULE_2__.$)(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.SELECTOR.WINNING_NUMBER_SECTION_RESET_BUTTON);
     }
   }, {
     key: "getInputedNumbers",
@@ -1296,6 +1310,16 @@ var WinningNumberView = /*#__PURE__*/function () {
       this.$bonusNumberInput.value = '';
     }
   }, {
+    key: "showResetButton",
+    value: function showResetButton() {
+      this.$resetButton.classList.remove(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.DOM_STRING.BLIND);
+    }
+  }, {
+    key: "removeResetButton",
+    value: function removeResetButton() {
+      this.$resetButton.classList.add(_configs_contants_js__WEBPACK_IMPORTED_MODULE_0__.DOM_STRING.BLIND);
+    }
+  }, {
     key: "bindOnClickShowResultButton",
     value: function bindOnClickShowResultButton(callback) {
       var _this = this;
@@ -1303,6 +1327,19 @@ var WinningNumberView = /*#__PURE__*/function () {
       this.$showResultButton.addEventListener('click', function (event) {
         event.preventDefault();
         callback(_this.getInputedNumbers());
+      });
+    }
+  }, {
+    key: "bindOnClickResetButton",
+    value: function bindOnClickResetButton(callback) {
+      var _this2 = this;
+
+      this.$resetButton.addEventListener('click', function (event) {
+        event.preventDefault();
+
+        _this2.removeResetButton();
+
+        callback();
       });
     }
   }]);
@@ -1333,7 +1370,7 @@ __webpack_require__.r(__webpack_exports__);
 
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "html {\n  font-family: 'Roboto', sans-serif;\n  font-size: 15px;\n}\n\nbody {\n  letter-spacing: 0.5px;\n}\n\n.blind {\n  display: none;\n}\n\nh1 {\n  font-weight: 600;\n  font-size: 34px;\n  line-height: 36px;\n}\n\nh6 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  letter-spacing: 0.15px;\n}\n\nlabel,\np {\n  display: block;\n  margin-bottom: 4px;\n  line-height: 24px;\n  font-weight: 400;\n  color: rgba(0, 0, 0, 0.87);\n}\n\ninput {\n  height: 36px;\n\n  border: 1px solid #b4b4b4;\n  box-sizing: border-box;\n  border-radius: 4px;\n}\n\ninput:placeholder {\n  margin: 0px 10px;\n\n  font-family: Roboto;\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 24px;\n\n  letter-spacing: 0.5px;\n  color: #8b8b8b;\n}\n\ninput::-webkit-outer-spin-button,\ninput::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n}\n\nbutton {\n  background: inherit;\n  border: none;\n  box-shadow: none;\n  overflow: visible;\n  cursor: pointer;\n\n  background: #00bcd4;\n  border-radius: 4px;\n  color: #fff;\n\n  font-style: normal;\n  font-weight: bold;\n  font-size: 14px;\n  line-height: 16px;\n\n  letter-spacing: 1.25px;\n  text-transform: uppercase;\n\n  height: 36px;\n}\n\nbutton:hover {\n  background: #80deea;\n}\n\nbutton:disabled {\n  background: #b4b4b4;\n}\n\nform {\n  display: flex;\n  justify-content: space-between;\n}\n", "",{"version":3,"sources":["webpack://./src/css/index.css"],"names":[],"mappings":"AAAA;EACE,iCAAiC;EACjC,eAAe;AACjB;;AAEA;EACE,qBAAqB;AACvB;;AAEA;EACE,aAAa;AACf;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;AACnB;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;EACjB,sBAAsB;AACxB;;AAEA;;EAEE,cAAc;EACd,kBAAkB;EAClB,iBAAiB;EACjB,gBAAgB;EAChB,0BAA0B;AAC5B;;AAEA;EACE,YAAY;;EAEZ,yBAAyB;EACzB,sBAAsB;EACtB,kBAAkB;AACpB;;AAEA;EACE,gBAAgB;;EAEhB,mBAAmB;EACnB,kBAAkB;EAClB,mBAAmB;EACnB,eAAe;EACf,iBAAiB;;EAEjB,qBAAqB;EACrB,cAAc;AAChB;;AAEA;;EAEE,wBAAwB;AAC1B;;AAEA;EACE,mBAAmB;EACnB,YAAY;EACZ,gBAAgB;EAChB,iBAAiB;EACjB,eAAe;;EAEf,mBAAmB;EACnB,kBAAkB;EAClB,WAAW;;EAEX,kBAAkB;EAClB,iBAAiB;EACjB,eAAe;EACf,iBAAiB;;EAEjB,sBAAsB;EACtB,yBAAyB;;EAEzB,YAAY;AACd;;AAEA;EACE,mBAAmB;AACrB;;AAEA;EACE,mBAAmB;AACrB;;AAEA;EACE,aAAa;EACb,8BAA8B;AAChC","sourcesContent":["html {\n  font-family: 'Roboto', sans-serif;\n  font-size: 15px;\n}\n\nbody {\n  letter-spacing: 0.5px;\n}\n\n.blind {\n  display: none;\n}\n\nh1 {\n  font-weight: 600;\n  font-size: 34px;\n  line-height: 36px;\n}\n\nh6 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  letter-spacing: 0.15px;\n}\n\nlabel,\np {\n  display: block;\n  margin-bottom: 4px;\n  line-height: 24px;\n  font-weight: 400;\n  color: rgba(0, 0, 0, 0.87);\n}\n\ninput {\n  height: 36px;\n\n  border: 1px solid #b4b4b4;\n  box-sizing: border-box;\n  border-radius: 4px;\n}\n\ninput:placeholder {\n  margin: 0px 10px;\n\n  font-family: Roboto;\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 24px;\n\n  letter-spacing: 0.5px;\n  color: #8b8b8b;\n}\n\ninput::-webkit-outer-spin-button,\ninput::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n}\n\nbutton {\n  background: inherit;\n  border: none;\n  box-shadow: none;\n  overflow: visible;\n  cursor: pointer;\n\n  background: #00bcd4;\n  border-radius: 4px;\n  color: #fff;\n\n  font-style: normal;\n  font-weight: bold;\n  font-size: 14px;\n  line-height: 16px;\n\n  letter-spacing: 1.25px;\n  text-transform: uppercase;\n\n  height: 36px;\n}\n\nbutton:hover {\n  background: #80deea;\n}\n\nbutton:disabled {\n  background: #b4b4b4;\n}\n\nform {\n  display: flex;\n  justify-content: space-between;\n}\n"],"sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, ":root {\n  --color-basic-button: #00bcd4;\n  --color-button-hover: #80deea;\n  --color-button-text: #fff;\n  --color-disable-button: #b4b4b4;\n  --color-app-reset-button: rgb(253, 119, 119);\n  --color-app-reset-button-hover: rgb(253, 203, 203);\n\n  --color-basic-text: rgba(8, 5, 5, 0.87);\n  --color-input-border: #b4b4b4;\n  --color-placeholder: #8b8b8b;\n  --color-app-border: rgba(0, 0, 0, 0.12);\n  --color-modal-background: rgba(0, 0, 0, 0.5);\n  --color-statistic-background: white;\n  --color-table-border: #dcdcdc;\n\n  --color-slider: rgba(33, 33, 33, 0.08);\n  --color-slider-before: rgb(250, 248, 248);\n  --color-slider-bar: #80deea;\n  --color-slider-bar-before: #00bcd4;\n  --color-slider-shadow: rgba(0, 0, 0, 0.2);\n}\n\nhtml {\n  font-family: 'Roboto', sans-serif;\n  font-size: 15px;\n}\n\nbody {\n  letter-spacing: 0.5px;\n}\n\n.blind {\n  display: none;\n}\n\n.outliner {\n  overflow: hidden;\n  border: 0;\n  position: absolute;\n  z-index: -1;\n  width: 1px;\n  height: 1px;\n  clip: rect(1px, 1px, 1px, 1px);\n  clip-path: inset(50%);\n}\n\nh1 {\n  font-weight: 600;\n  font-size: 34px;\n  line-height: 36px;\n}\n\nh6 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  letter-spacing: 0.15px;\n}\n\nlabel,\np {\n  display: block;\n  margin-bottom: 4px;\n  line-height: 24px;\n  font-weight: 400;\n  color: var(--color-basic-text);\n}\n\ninput {\n  height: 36px;\n\n  border: 1px solid var(--color-input-border);\n  box-sizing: border-box;\n  border-radius: 4px;\n}\n\ninput:placeholder {\n  margin: 0px 10px;\n\n  font-family: Roboto;\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 24px;\n\n  letter-spacing: 0.5px;\n  color: var(--color-placeholder);\n}\n\ninput::-webkit-outer-spin-button,\ninput::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n}\n\nbutton {\n  background: inherit;\n  border: none;\n  box-shadow: none;\n  overflow: visible;\n  cursor: pointer;\n\n  background: var(--color-basic-button);\n  border-radius: 4px;\n  color: var(--color-button-text);\n\n  font-style: normal;\n  font-weight: bold;\n  font-size: 14px;\n  line-height: 16px;\n\n  letter-spacing: 1.25px;\n  text-transform: uppercase;\n\n  height: 36px;\n}\n\nbutton:hover {\n  background: var(--color-button-hover);\n}\n\nbutton:disabled {\n  background: var(--color-disable-button);\n}\n\nul {\n  list-style: none;\n}\n", "",{"version":3,"sources":["webpack://./src/css/index.css"],"names":[],"mappings":"AAAA;EACE,6BAA6B;EAC7B,6BAA6B;EAC7B,yBAAyB;EACzB,+BAA+B;EAC/B,4CAA4C;EAC5C,kDAAkD;;EAElD,uCAAuC;EACvC,6BAA6B;EAC7B,4BAA4B;EAC5B,uCAAuC;EACvC,4CAA4C;EAC5C,mCAAmC;EACnC,6BAA6B;;EAE7B,sCAAsC;EACtC,yCAAyC;EACzC,2BAA2B;EAC3B,kCAAkC;EAClC,yCAAyC;AAC3C;;AAEA;EACE,iCAAiC;EACjC,eAAe;AACjB;;AAEA;EACE,qBAAqB;AACvB;;AAEA;EACE,aAAa;AACf;;AAEA;EACE,gBAAgB;EAChB,SAAS;EACT,kBAAkB;EAClB,WAAW;EACX,UAAU;EACV,WAAW;EACX,8BAA8B;EAC9B,qBAAqB;AACvB;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;AACnB;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;EACjB,sBAAsB;AACxB;;AAEA;;EAEE,cAAc;EACd,kBAAkB;EAClB,iBAAiB;EACjB,gBAAgB;EAChB,8BAA8B;AAChC;;AAEA;EACE,YAAY;;EAEZ,2CAA2C;EAC3C,sBAAsB;EACtB,kBAAkB;AACpB;;AAEA;EACE,gBAAgB;;EAEhB,mBAAmB;EACnB,kBAAkB;EAClB,mBAAmB;EACnB,eAAe;EACf,iBAAiB;;EAEjB,qBAAqB;EACrB,+BAA+B;AACjC;;AAEA;;EAEE,wBAAwB;AAC1B;;AAEA;EACE,mBAAmB;EACnB,YAAY;EACZ,gBAAgB;EAChB,iBAAiB;EACjB,eAAe;;EAEf,qCAAqC;EACrC,kBAAkB;EAClB,+BAA+B;;EAE/B,kBAAkB;EAClB,iBAAiB;EACjB,eAAe;EACf,iBAAiB;;EAEjB,sBAAsB;EACtB,yBAAyB;;EAEzB,YAAY;AACd;;AAEA;EACE,qCAAqC;AACvC;;AAEA;EACE,uCAAuC;AACzC;;AAEA;EACE,gBAAgB;AAClB","sourcesContent":[":root {\n  --color-basic-button: #00bcd4;\n  --color-button-hover: #80deea;\n  --color-button-text: #fff;\n  --color-disable-button: #b4b4b4;\n  --color-app-reset-button: rgb(253, 119, 119);\n  --color-app-reset-button-hover: rgb(253, 203, 203);\n\n  --color-basic-text: rgba(8, 5, 5, 0.87);\n  --color-input-border: #b4b4b4;\n  --color-placeholder: #8b8b8b;\n  --color-app-border: rgba(0, 0, 0, 0.12);\n  --color-modal-background: rgba(0, 0, 0, 0.5);\n  --color-statistic-background: white;\n  --color-table-border: #dcdcdc;\n\n  --color-slider: rgba(33, 33, 33, 0.08);\n  --color-slider-before: rgb(250, 248, 248);\n  --color-slider-bar: #80deea;\n  --color-slider-bar-before: #00bcd4;\n  --color-slider-shadow: rgba(0, 0, 0, 0.2);\n}\n\nhtml {\n  font-family: 'Roboto', sans-serif;\n  font-size: 15px;\n}\n\nbody {\n  letter-spacing: 0.5px;\n}\n\n.blind {\n  display: none;\n}\n\n.outliner {\n  overflow: hidden;\n  border: 0;\n  position: absolute;\n  z-index: -1;\n  width: 1px;\n  height: 1px;\n  clip: rect(1px, 1px, 1px, 1px);\n  clip-path: inset(50%);\n}\n\nh1 {\n  font-weight: 600;\n  font-size: 34px;\n  line-height: 36px;\n}\n\nh6 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  letter-spacing: 0.15px;\n}\n\nlabel,\np {\n  display: block;\n  margin-bottom: 4px;\n  line-height: 24px;\n  font-weight: 400;\n  color: var(--color-basic-text);\n}\n\ninput {\n  height: 36px;\n\n  border: 1px solid var(--color-input-border);\n  box-sizing: border-box;\n  border-radius: 4px;\n}\n\ninput:placeholder {\n  margin: 0px 10px;\n\n  font-family: Roboto;\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 24px;\n\n  letter-spacing: 0.5px;\n  color: var(--color-placeholder);\n}\n\ninput::-webkit-outer-spin-button,\ninput::-webkit-inner-spin-button {\n  -webkit-appearance: none;\n}\n\nbutton {\n  background: inherit;\n  border: none;\n  box-shadow: none;\n  overflow: visible;\n  cursor: pointer;\n\n  background: var(--color-basic-button);\n  border-radius: 4px;\n  color: var(--color-button-text);\n\n  font-style: normal;\n  font-weight: bold;\n  font-size: 14px;\n  line-height: 16px;\n\n  letter-spacing: 1.25px;\n  text-transform: uppercase;\n\n  height: 36px;\n}\n\nbutton:hover {\n  background: var(--color-button-hover);\n}\n\nbutton:disabled {\n  background: var(--color-disable-button);\n}\n\nul {\n  list-style: none;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -1359,7 +1396,7 @@ __webpack_require__.r(__webpack_exports__);
 
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "#app {\n  position: absolute;\n  left: 50%;\n  transform: translate(-50%);\n  margin-top: 52px;\n  width: 414px;\n\n  border: 1px solid rgba(0, 0, 0, 0.12);\n  border-radius: 4px;\n  padding: 0 16px;\n\n  display: flex;\n  flex-direction: column;\n  gap: 28px;\n}\n\n#title {\n  text-align: center;\n  margin-top: 52px;\n}\n", "",{"version":3,"sources":["webpack://./src/css/lotto_app.css"],"names":[],"mappings":"AAAA;EACE,kBAAkB;EAClB,SAAS;EACT,0BAA0B;EAC1B,gBAAgB;EAChB,YAAY;;EAEZ,qCAAqC;EACrC,kBAAkB;EAClB,eAAe;;EAEf,aAAa;EACb,sBAAsB;EACtB,SAAS;AACX;;AAEA;EACE,kBAAkB;EAClB,gBAAgB;AAClB","sourcesContent":["#app {\n  position: absolute;\n  left: 50%;\n  transform: translate(-50%);\n  margin-top: 52px;\n  width: 414px;\n\n  border: 1px solid rgba(0, 0, 0, 0.12);\n  border-radius: 4px;\n  padding: 0 16px;\n\n  display: flex;\n  flex-direction: column;\n  gap: 28px;\n}\n\n#title {\n  text-align: center;\n  margin-top: 52px;\n}\n"],"sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, "#app {\n  position: absolute;\n  left: 50%;\n  transform: translate(-50%);\n  margin-top: 52px;\n  width: 414px;\n  min-height: 714px;\n\n  border: 1px solid var(--color-app-border);\n  border-radius: 4px;\n  padding: 0 16px;\n\n  display: flex;\n  flex-direction: column;\n  gap: 28px;\n}\n\n#title {\n  text-align: center;\n  margin-top: 52px;\n}\n", "",{"version":3,"sources":["webpack://./src/css/lotto_app.css"],"names":[],"mappings":"AAAA;EACE,kBAAkB;EAClB,SAAS;EACT,0BAA0B;EAC1B,gBAAgB;EAChB,YAAY;EACZ,iBAAiB;;EAEjB,yCAAyC;EACzC,kBAAkB;EAClB,eAAe;;EAEf,aAAa;EACb,sBAAsB;EACtB,SAAS;AACX;;AAEA;EACE,kBAAkB;EAClB,gBAAgB;AAClB","sourcesContent":["#app {\n  position: absolute;\n  left: 50%;\n  transform: translate(-50%);\n  margin-top: 52px;\n  width: 414px;\n  min-height: 714px;\n\n  border: 1px solid var(--color-app-border);\n  border-radius: 4px;\n  padding: 0 16px;\n\n  display: flex;\n  flex-direction: column;\n  gap: 28px;\n}\n\n#title {\n  text-align: center;\n  margin-top: 52px;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -1385,7 +1422,7 @@ __webpack_require__.r(__webpack_exports__);
 
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "#payment-input {\n  width: 310px;\n}\n\n#payment-submit {\n  width: 56px;\n}\n", "",{"version":3,"sources":["webpack://./src/css/payment_section.css"],"names":[],"mappings":"AAAA;EACE,YAAY;AACd;;AAEA;EACE,WAAW;AACb","sourcesContent":["#payment-input {\n  width: 310px;\n}\n\n#payment-submit {\n  width: 56px;\n}\n"],"sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, "#payment-form {\n  display: flex;\n  justify-content: space-between;\n}\n\n#payment-input {\n  width: 310px;\n}\n\n#payment-submit {\n  width: 56px;\n}\n", "",{"version":3,"sources":["webpack://./src/css/payment_section.css"],"names":[],"mappings":"AAAA;EACE,aAAa;EACb,8BAA8B;AAChC;;AAEA;EACE,YAAY;AACd;;AAEA;EACE,WAAW;AACb","sourcesContent":["#payment-form {\n  display: flex;\n  justify-content: space-between;\n}\n\n#payment-input {\n  width: 310px;\n}\n\n#payment-submit {\n  width: 56px;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -1416,7 +1453,7 @@ var ___CSS_LOADER_URL_IMPORT_0___ = new URL(/* asset import */ __webpack_require
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 var ___CSS_LOADER_URL_REPLACEMENT_0___ = _node_modules_css_loader_dist_runtime_getUrl_js__WEBPACK_IMPORTED_MODULE_2___default()(___CSS_LOADER_URL_IMPORT_0___);
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "#statistic-section-wrap {\n  background-color: rgba(0, 0, 0, 0.5);\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  margin-left: -16px;\n}\n\n#close-button {\n  position: absolute;\n  width: 14px;\n  height: 14px;\n  top: 16px;\n  right: 16px;\n  cursor: pointer;\n  background: url(" + ___CSS_LOADER_URL_REPLACEMENT_0___ + ");\n}\n\n#statistic-section {\n  position: absolute;\n  top: 50%;\n  left: 50%;\n  transform: translateX(-50%) translateY(-50%);\n  width: 350px;\n  height: 500px;\n  background-color: white;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 16px;\n}\n\n#statistic-section > h2 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  text-align: center;\n  margin-top: 40px;\n}\n\n#statistic-table {\n  width: 318px;\n  margin-top: 16px;\n}\n\n#statistic-table tr {\n  border-top: 1px solid #dcdcdc;\n  border-bottom: 1px solid #dcdcdc;\n}\n\n#statistic-table th,\n#statistic-table td {\n  text-align: center;\n  vertical-align: middle;\n  padding: 8px 0;\n  height: 24px;\n  font-size: 15px;\n  line-height: 24px;\n  width: calc(100% / 3);\n}\n\n#statistic-table th {\n  font-weight: 600;\n}\n\n#statistic-table td {\n  font-weight: 400;\n}\n\n#ratio-result {\n  font-weight: 600;\n  font-size: 15px;\n  line-height: 24px;\n  text-align: center;\n}\n\n#reset-button {\n  width: 152px;\n  height: 36px;\n  margin: 16px;\n}\n", "",{"version":3,"sources":["webpack://./src/css/statistic_section.css"],"names":[],"mappings":"AAAA;EACE,oCAAoC;EACpC,kBAAkB;EAClB,WAAW;EACX,YAAY;EACZ,kBAAkB;AACpB;;AAEA;EACE,kBAAkB;EAClB,WAAW;EACX,YAAY;EACZ,SAAS;EACT,WAAW;EACX,eAAe;EACf,mDAAyC;AAC3C;;AAEA;EACE,kBAAkB;EAClB,QAAQ;EACR,SAAS;EACT,4CAA4C;EAC5C,YAAY;EACZ,aAAa;EACb,uBAAuB;EACvB,aAAa;EACb,sBAAsB;EACtB,mBAAmB;EACnB,SAAS;AACX;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;EACjB,kBAAkB;EAClB,gBAAgB;AAClB;;AAEA;EACE,YAAY;EACZ,gBAAgB;AAClB;;AAEA;EACE,6BAA6B;EAC7B,gCAAgC;AAClC;;AAEA;;EAEE,kBAAkB;EAClB,sBAAsB;EACtB,cAAc;EACd,YAAY;EACZ,eAAe;EACf,iBAAiB;EACjB,qBAAqB;AACvB;;AAEA;EACE,gBAAgB;AAClB;;AAEA;EACE,gBAAgB;AAClB;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;EACjB,kBAAkB;AACpB;;AAEA;EACE,YAAY;EACZ,YAAY;EACZ,YAAY;AACd","sourcesContent":["#statistic-section-wrap {\n  background-color: rgba(0, 0, 0, 0.5);\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  margin-left: -16px;\n}\n\n#close-button {\n  position: absolute;\n  width: 14px;\n  height: 14px;\n  top: 16px;\n  right: 16px;\n  cursor: pointer;\n  background: url('../../images/close.svg');\n}\n\n#statistic-section {\n  position: absolute;\n  top: 50%;\n  left: 50%;\n  transform: translateX(-50%) translateY(-50%);\n  width: 350px;\n  height: 500px;\n  background-color: white;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 16px;\n}\n\n#statistic-section > h2 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  text-align: center;\n  margin-top: 40px;\n}\n\n#statistic-table {\n  width: 318px;\n  margin-top: 16px;\n}\n\n#statistic-table tr {\n  border-top: 1px solid #dcdcdc;\n  border-bottom: 1px solid #dcdcdc;\n}\n\n#statistic-table th,\n#statistic-table td {\n  text-align: center;\n  vertical-align: middle;\n  padding: 8px 0;\n  height: 24px;\n  font-size: 15px;\n  line-height: 24px;\n  width: calc(100% / 3);\n}\n\n#statistic-table th {\n  font-weight: 600;\n}\n\n#statistic-table td {\n  font-weight: 400;\n}\n\n#ratio-result {\n  font-weight: 600;\n  font-size: 15px;\n  line-height: 24px;\n  text-align: center;\n}\n\n#reset-button {\n  width: 152px;\n  height: 36px;\n  margin: 16px;\n}\n"],"sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, "#statistic-section-wrap {\n  background-color: var(--color-modal-background);\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  margin-left: -16px;\n}\n\n#close-button {\n  position: absolute;\n  width: 14px;\n  height: 14px;\n  top: 16px;\n  right: 16px;\n  cursor: pointer;\n  background: url(" + ___CSS_LOADER_URL_REPLACEMENT_0___ + ");\n}\n\n#statistic-section {\n  position: absolute;\n  top: 50%;\n  left: 50%;\n  transform: translateX(-50%) translateY(-50%);\n  width: 350px;\n  height: 500px;\n  background-color: var(--color-statistic-background);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 16px;\n}\n\n#statistic-section > h2 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  text-align: center;\n  margin-top: 40px;\n}\n\n#statistic-table {\n  width: 318px;\n  margin-top: 16px;\n}\n\n#statistic-table tr {\n  border-top: 1px solid var(--color-table-border);\n  border-bottom: 1px solid var(--color-table-border);\n}\n\n#statistic-table th,\n#statistic-table td {\n  text-align: center;\n  vertical-align: middle;\n  padding: 8px 0;\n  height: 24px;\n  font-size: 15px;\n  line-height: 24px;\n  width: calc(100% / 3);\n}\n\n#statistic-table th {\n  font-weight: 600;\n}\n\n#statistic-table td {\n  font-weight: 400;\n}\n\n#ratio-result {\n  font-weight: 600;\n  font-size: 15px;\n  line-height: 24px;\n  text-align: center;\n}\n\n#statistic-section-reset-button {\n  width: 152px;\n  height: 36px;\n  margin: 16px;\n}\n", "",{"version":3,"sources":["webpack://./src/css/statistic_section.css"],"names":[],"mappings":"AAAA;EACE,+CAA+C;EAC/C,kBAAkB;EAClB,WAAW;EACX,YAAY;EACZ,kBAAkB;AACpB;;AAEA;EACE,kBAAkB;EAClB,WAAW;EACX,YAAY;EACZ,SAAS;EACT,WAAW;EACX,eAAe;EACf,mDAAyC;AAC3C;;AAEA;EACE,kBAAkB;EAClB,QAAQ;EACR,SAAS;EACT,4CAA4C;EAC5C,YAAY;EACZ,aAAa;EACb,mDAAmD;EACnD,aAAa;EACb,sBAAsB;EACtB,mBAAmB;EACnB,SAAS;AACX;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;EACjB,kBAAkB;EAClB,gBAAgB;AAClB;;AAEA;EACE,YAAY;EACZ,gBAAgB;AAClB;;AAEA;EACE,+CAA+C;EAC/C,kDAAkD;AACpD;;AAEA;;EAEE,kBAAkB;EAClB,sBAAsB;EACtB,cAAc;EACd,YAAY;EACZ,eAAe;EACf,iBAAiB;EACjB,qBAAqB;AACvB;;AAEA;EACE,gBAAgB;AAClB;;AAEA;EACE,gBAAgB;AAClB;;AAEA;EACE,gBAAgB;EAChB,eAAe;EACf,iBAAiB;EACjB,kBAAkB;AACpB;;AAEA;EACE,YAAY;EACZ,YAAY;EACZ,YAAY;AACd","sourcesContent":["#statistic-section-wrap {\n  background-color: var(--color-modal-background);\n  position: absolute;\n  width: 100%;\n  height: 100%;\n  margin-left: -16px;\n}\n\n#close-button {\n  position: absolute;\n  width: 14px;\n  height: 14px;\n  top: 16px;\n  right: 16px;\n  cursor: pointer;\n  background: url('../../images/close.svg');\n}\n\n#statistic-section {\n  position: absolute;\n  top: 50%;\n  left: 50%;\n  transform: translateX(-50%) translateY(-50%);\n  width: 350px;\n  height: 500px;\n  background-color: var(--color-statistic-background);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 16px;\n}\n\n#statistic-section > h2 {\n  font-weight: 600;\n  font-size: 20px;\n  line-height: 24px;\n  text-align: center;\n  margin-top: 40px;\n}\n\n#statistic-table {\n  width: 318px;\n  margin-top: 16px;\n}\n\n#statistic-table tr {\n  border-top: 1px solid var(--color-table-border);\n  border-bottom: 1px solid var(--color-table-border);\n}\n\n#statistic-table th,\n#statistic-table td {\n  text-align: center;\n  vertical-align: middle;\n  padding: 8px 0;\n  height: 24px;\n  font-size: 15px;\n  line-height: 24px;\n  width: calc(100% / 3);\n}\n\n#statistic-table th {\n  font-weight: 600;\n}\n\n#statistic-table td {\n  font-weight: 400;\n}\n\n#ratio-result {\n  font-weight: 600;\n  font-size: 15px;\n  line-height: 24px;\n  text-align: center;\n}\n\n#statistic-section-reset-button {\n  width: 152px;\n  height: 36px;\n  margin: 16px;\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -1442,7 +1479,7 @@ __webpack_require__.r(__webpack_exports__);
 
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "#ticket-section {\n  display: flex;\n  justify-content: space-between;\n}\n\n#ticket-list-wrap {\n  overflow: scroll;\n  height: 300px;\n}\n\n#ticket-list {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  width: 286px;\n}\n\n.ticket-list-row {\n  flex-direction: row;\n}\n\n.ticket-list-column {\n  flex-direction: column;\n}\n\n.ticket {\n  height: 36px;\n  font-size: 34px;\n  line-height: 36px;\n}\n\n.ticket > p {\n  width: max-content;\n  display: flex;\n}\n\n.ticket-emoji {\n  display: flex;\n  align-items: center;\n}\n\n.ticket-numbers {\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 36px;\n  margin-left: 8px;\n}\n\n#show-number-toggle-area {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch-label {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch {\n  position: relative;\n  display: inline-block;\n}\n\n/* Hide default HTML checkbox */\n.switch input {\n  width: 30px;\n  height: 10px;\n  visibility: hidden;\n}\n\n/* The slider */\n.slider {\n  position: absolute;\n  cursor: pointer;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background-color: rgba(33, 33, 33, 0.08);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n.slider:before {\n  position: absolute;\n  content: '';\n  height: 20px;\n  width: 20px;\n  left: 0px;\n  bottom: -3px;\n  background-color: rgb(250, 248, 248);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n/* switch on: background bar */\ninput:checked + .slider {\n  background-color: #80deea;\n}\n\n/* switch on : round */\ninput:checked + .slider:before {\n  -webkit-transform: translateX(14px);\n  -ms-transform: translateX(14px);\n  transform: translateX(14px);\n  background-color: #00bcd4;\n}\n\n/* Rounded sliders */\n.slider.round {\n  border-radius: 34px;\n  width: 34px;\n  height: 14px;\n}\n\n.slider.round:before {\n  border-radius: 50%;\n  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);\n}\n", "",{"version":3,"sources":["webpack://./src/css/ticket_section.css"],"names":[],"mappings":"AAAA;EACE,aAAa;EACb,8BAA8B;AAChC;;AAEA;EACE,gBAAgB;EAChB,aAAa;AACf;;AAEA;EACE,aAAa;EACb,QAAQ;EACR,eAAe;EACf,YAAY;AACd;;AAEA;EACE,mBAAmB;AACrB;;AAEA;EACE,sBAAsB;AACxB;;AAEA;EACE,YAAY;EACZ,eAAe;EACf,iBAAiB;AACnB;;AAEA;EACE,kBAAkB;EAClB,aAAa;AACf;;AAEA;EACE,aAAa;EACb,mBAAmB;AACrB;;AAEA;EACE,kBAAkB;EAClB,mBAAmB;EACnB,eAAe;EACf,iBAAiB;EACjB,gBAAgB;AAClB;;AAEA;EACE,aAAa;EACb,sBAAsB;EACtB,qBAAqB;AACvB;;AAEA;EACE,aAAa;EACb,sBAAsB;EACtB,qBAAqB;AACvB;;AAEA;EACE,kBAAkB;EAClB,qBAAqB;AACvB;;AAEA,+BAA+B;AAC/B;EACE,WAAW;EACX,YAAY;EACZ,kBAAkB;AACpB;;AAEA,eAAe;AACf;EACE,kBAAkB;EAClB,eAAe;EACf,MAAM;EACN,OAAO;EACP,QAAQ;EACR,SAAS;EACT,wCAAwC;EACxC,wBAAwB;EACxB,gBAAgB;AAClB;;AAEA;EACE,kBAAkB;EAClB,WAAW;EACX,YAAY;EACZ,WAAW;EACX,SAAS;EACT,YAAY;EACZ,oCAAoC;EACpC,wBAAwB;EACxB,gBAAgB;AAClB;;AAEA,8BAA8B;AAC9B;EACE,yBAAyB;AAC3B;;AAEA,sBAAsB;AACtB;EACE,mCAAmC;EACnC,+BAA+B;EAC/B,2BAA2B;EAC3B,yBAAyB;AAC3B;;AAEA,oBAAoB;AACpB;EACE,mBAAmB;EACnB,WAAW;EACX,YAAY;AACd;;AAEA;EACE,kBAAkB;EAClB,wCAAwC;AAC1C","sourcesContent":["#ticket-section {\n  display: flex;\n  justify-content: space-between;\n}\n\n#ticket-list-wrap {\n  overflow: scroll;\n  height: 300px;\n}\n\n#ticket-list {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  width: 286px;\n}\n\n.ticket-list-row {\n  flex-direction: row;\n}\n\n.ticket-list-column {\n  flex-direction: column;\n}\n\n.ticket {\n  height: 36px;\n  font-size: 34px;\n  line-height: 36px;\n}\n\n.ticket > p {\n  width: max-content;\n  display: flex;\n}\n\n.ticket-emoji {\n  display: flex;\n  align-items: center;\n}\n\n.ticket-numbers {\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 36px;\n  margin-left: 8px;\n}\n\n#show-number-toggle-area {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch-label {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch {\n  position: relative;\n  display: inline-block;\n}\n\n/* Hide default HTML checkbox */\n.switch input {\n  width: 30px;\n  height: 10px;\n  visibility: hidden;\n}\n\n/* The slider */\n.slider {\n  position: absolute;\n  cursor: pointer;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background-color: rgba(33, 33, 33, 0.08);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n.slider:before {\n  position: absolute;\n  content: '';\n  height: 20px;\n  width: 20px;\n  left: 0px;\n  bottom: -3px;\n  background-color: rgb(250, 248, 248);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n/* switch on: background bar */\ninput:checked + .slider {\n  background-color: #80deea;\n}\n\n/* switch on : round */\ninput:checked + .slider:before {\n  -webkit-transform: translateX(14px);\n  -ms-transform: translateX(14px);\n  transform: translateX(14px);\n  background-color: #00bcd4;\n}\n\n/* Rounded sliders */\n.slider.round {\n  border-radius: 34px;\n  width: 34px;\n  height: 14px;\n}\n\n.slider.round:before {\n  border-radius: 50%;\n  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);\n}\n"],"sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, "#ticket-section {\n  display: flex;\n  justify-content: space-between;\n}\n\n#ticket-list-wrap {\n  overflow: scroll;\n  height: 300px;\n}\n\n#ticket-list {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  width: 286px;\n}\n\n.ticket-list-row {\n  flex-direction: row;\n}\n\n.ticket-list-column {\n  flex-direction: column;\n}\n\n.ticket {\n  height: 36px;\n  font-size: 34px;\n  line-height: 36px;\n}\n\n.ticket > p {\n  width: max-content;\n  display: flex;\n}\n\n.ticket-emoji {\n  display: flex;\n  align-items: center;\n}\n\n.ticket-numbers {\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 36px;\n  margin-left: 8px;\n}\n\n#show-number-toggle-area {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch-label {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch {\n  position: relative;\n  display: inline-block;\n}\n\n/* Hide default HTML checkbox */\n.switch input {\n  width: 30px;\n  height: 10px;\n  visibility: hidden;\n}\n\n/* The slider */\n.slider {\n  position: absolute;\n  cursor: pointer;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background-color: var(--color-slider);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n.slider:before {\n  position: absolute;\n  content: '';\n  height: 20px;\n  width: 20px;\n  left: 0px;\n  bottom: -3px;\n  background-color: var(--color-slider-before);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n/* switch on: background bar */\ninput:checked + .slider {\n  background-color: var(--color-slider-bar);\n}\n\n/* switch on : round */\ninput:checked + .slider:before {\n  -webkit-transform: translateX(14px);\n  -ms-transform: translateX(14px);\n  transform: translateX(14px);\n  background-color: var(--color-slider-bar-before);\n}\n\n/* Rounded sliders */\n.slider.round {\n  border-radius: 34px;\n  width: 34px;\n  height: 14px;\n}\n\n.slider.round:before {\n  border-radius: 50%;\n  box-shadow: 0 2px 2px var(--color-slider-shadow);\n}\n", "",{"version":3,"sources":["webpack://./src/css/ticket_section.css"],"names":[],"mappings":"AAAA;EACE,aAAa;EACb,8BAA8B;AAChC;;AAEA;EACE,gBAAgB;EAChB,aAAa;AACf;;AAEA;EACE,aAAa;EACb,QAAQ;EACR,eAAe;EACf,YAAY;AACd;;AAEA;EACE,mBAAmB;AACrB;;AAEA;EACE,sBAAsB;AACxB;;AAEA;EACE,YAAY;EACZ,eAAe;EACf,iBAAiB;AACnB;;AAEA;EACE,kBAAkB;EAClB,aAAa;AACf;;AAEA;EACE,aAAa;EACb,mBAAmB;AACrB;;AAEA;EACE,kBAAkB;EAClB,mBAAmB;EACnB,eAAe;EACf,iBAAiB;EACjB,gBAAgB;AAClB;;AAEA;EACE,aAAa;EACb,sBAAsB;EACtB,qBAAqB;AACvB;;AAEA;EACE,aAAa;EACb,sBAAsB;EACtB,qBAAqB;AACvB;;AAEA;EACE,kBAAkB;EAClB,qBAAqB;AACvB;;AAEA,+BAA+B;AAC/B;EACE,WAAW;EACX,YAAY;EACZ,kBAAkB;AACpB;;AAEA,eAAe;AACf;EACE,kBAAkB;EAClB,eAAe;EACf,MAAM;EACN,OAAO;EACP,QAAQ;EACR,SAAS;EACT,qCAAqC;EACrC,wBAAwB;EACxB,gBAAgB;AAClB;;AAEA;EACE,kBAAkB;EAClB,WAAW;EACX,YAAY;EACZ,WAAW;EACX,SAAS;EACT,YAAY;EACZ,4CAA4C;EAC5C,wBAAwB;EACxB,gBAAgB;AAClB;;AAEA,8BAA8B;AAC9B;EACE,yCAAyC;AAC3C;;AAEA,sBAAsB;AACtB;EACE,mCAAmC;EACnC,+BAA+B;EAC/B,2BAA2B;EAC3B,gDAAgD;AAClD;;AAEA,oBAAoB;AACpB;EACE,mBAAmB;EACnB,WAAW;EACX,YAAY;AACd;;AAEA;EACE,kBAAkB;EAClB,gDAAgD;AAClD","sourcesContent":["#ticket-section {\n  display: flex;\n  justify-content: space-between;\n}\n\n#ticket-list-wrap {\n  overflow: scroll;\n  height: 300px;\n}\n\n#ticket-list {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n  width: 286px;\n}\n\n.ticket-list-row {\n  flex-direction: row;\n}\n\n.ticket-list-column {\n  flex-direction: column;\n}\n\n.ticket {\n  height: 36px;\n  font-size: 34px;\n  line-height: 36px;\n}\n\n.ticket > p {\n  width: max-content;\n  display: flex;\n}\n\n.ticket-emoji {\n  display: flex;\n  align-items: center;\n}\n\n.ticket-numbers {\n  font-style: normal;\n  font-weight: normal;\n  font-size: 15px;\n  line-height: 36px;\n  margin-left: 8px;\n}\n\n#show-number-toggle-area {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch-label {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n.switch {\n  position: relative;\n  display: inline-block;\n}\n\n/* Hide default HTML checkbox */\n.switch input {\n  width: 30px;\n  height: 10px;\n  visibility: hidden;\n}\n\n/* The slider */\n.slider {\n  position: absolute;\n  cursor: pointer;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  background-color: var(--color-slider);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n.slider:before {\n  position: absolute;\n  content: '';\n  height: 20px;\n  width: 20px;\n  left: 0px;\n  bottom: -3px;\n  background-color: var(--color-slider-before);\n  -webkit-transition: 0.4s;\n  transition: 0.4s;\n}\n\n/* switch on: background bar */\ninput:checked + .slider {\n  background-color: var(--color-slider-bar);\n}\n\n/* switch on : round */\ninput:checked + .slider:before {\n  -webkit-transform: translateX(14px);\n  -ms-transform: translateX(14px);\n  transform: translateX(14px);\n  background-color: var(--color-slider-bar-before);\n}\n\n/* Rounded sliders */\n.slider.round {\n  border-radius: 34px;\n  width: 34px;\n  height: 14px;\n}\n\n.slider.round:before {\n  border-radius: 50%;\n  box-shadow: 0 2px 2px var(--color-slider-shadow);\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -1468,7 +1505,7 @@ __webpack_require__.r(__webpack_exports__);
 
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, "#winning-number-section {\n  display: flex;\n  flex-direction: column;\n}\n\n#winning-number-fieldset {\n  display: flex;\n  justify-content: space-between;\n  margin-bottom: 24px;\n}\n\n#winning-number-input-wrap {\n  display: flex;\n  gap: 8px;\n}\n\n.winning-number-input,\n.bonus-number-input {\n  width: 34px;\n  text-align: center;\n}\n\n#winning-number-form {\n  display: flex;\n  flex-direction: column;\n}\n\n#bonus-number-form {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n#show-result-button {\n  margin-bottom: 39px;\n}\n", "",{"version":3,"sources":["webpack://./src/css/winning_number_section.css"],"names":[],"mappings":"AAAA;EACE,aAAa;EACb,sBAAsB;AACxB;;AAEA;EACE,aAAa;EACb,8BAA8B;EAC9B,mBAAmB;AACrB;;AAEA;EACE,aAAa;EACb,QAAQ;AACV;;AAEA;;EAEE,WAAW;EACX,kBAAkB;AACpB;;AAEA;EACE,aAAa;EACb,sBAAsB;AACxB;;AAEA;EACE,aAAa;EACb,sBAAsB;EACtB,qBAAqB;AACvB;;AAEA;EACE,mBAAmB;AACrB","sourcesContent":["#winning-number-section {\n  display: flex;\n  flex-direction: column;\n}\n\n#winning-number-fieldset {\n  display: flex;\n  justify-content: space-between;\n  margin-bottom: 24px;\n}\n\n#winning-number-input-wrap {\n  display: flex;\n  gap: 8px;\n}\n\n.winning-number-input,\n.bonus-number-input {\n  width: 34px;\n  text-align: center;\n}\n\n#winning-number-form {\n  display: flex;\n  flex-direction: column;\n}\n\n#bonus-number-form {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-end;\n}\n\n#show-result-button {\n  margin-bottom: 39px;\n}\n"],"sourceRoot":""}]);
+___CSS_LOADER_EXPORT___.push([module.id, "#winning-number-section {\n  display: flex;\n  flex-direction: column;\n}\n\n#winning-number-fieldset {\n  display: flex;\n  justify-content: space-between;\n  margin-bottom: 24px;\n}\n\n#winning-number-input-label,\n#bonus-number-input-label {\n  display: flex;\n  flex-direction: column;\n}\n\n#bonus-number-input-label {\n  align-items: flex-end;\n}\n\n#winning-number-input-wrap {\n  display: flex;\n  gap: 8px;\n}\n\n.winning-number-input,\n#bonus-number-input {\n  width: 34px;\n  text-align: center;\n}\n\n#show-result-button {\n  width: 100%;\n  margin-bottom: 5px;\n}\n\n#winning-number-section-reset-button {\n  background-color: var(--color-app-reset-button);\n  margin-bottom: 20px;\n}\n\n#winning-number-section-reset-button:hover {\n  background-color: var(--color-app-reset-button-hover);\n}\n", "",{"version":3,"sources":["webpack://./src/css/winning_number_section.css"],"names":[],"mappings":"AAAA;EACE,aAAa;EACb,sBAAsB;AACxB;;AAEA;EACE,aAAa;EACb,8BAA8B;EAC9B,mBAAmB;AACrB;;AAEA;;EAEE,aAAa;EACb,sBAAsB;AACxB;;AAEA;EACE,qBAAqB;AACvB;;AAEA;EACE,aAAa;EACb,QAAQ;AACV;;AAEA;;EAEE,WAAW;EACX,kBAAkB;AACpB;;AAEA;EACE,WAAW;EACX,kBAAkB;AACpB;;AAEA;EACE,+CAA+C;EAC/C,mBAAmB;AACrB;;AAEA;EACE,qDAAqD;AACvD","sourcesContent":["#winning-number-section {\n  display: flex;\n  flex-direction: column;\n}\n\n#winning-number-fieldset {\n  display: flex;\n  justify-content: space-between;\n  margin-bottom: 24px;\n}\n\n#winning-number-input-label,\n#bonus-number-input-label {\n  display: flex;\n  flex-direction: column;\n}\n\n#bonus-number-input-label {\n  align-items: flex-end;\n}\n\n#winning-number-input-wrap {\n  display: flex;\n  gap: 8px;\n}\n\n.winning-number-input,\n#bonus-number-input {\n  width: 34px;\n  text-align: center;\n}\n\n#show-result-button {\n  width: 100%;\n  margin-bottom: 5px;\n}\n\n#winning-number-section-reset-button {\n  background-color: var(--color-app-reset-button);\n  margin-bottom: 20px;\n}\n\n#winning-number-section-reset-button:hover {\n  background-color: var(--color-app-reset-button-hover);\n}\n"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
